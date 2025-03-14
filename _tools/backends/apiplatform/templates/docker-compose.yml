@@ -1,0 +1,25 @@
+services:
+  php:
+    image: multitech-apiplatform:latest
+    container_name: multitech-apiplatform-server
+    networks:
+      - multitech-common-network
+    volumes:
+      - ./api:/var/www/api # Mount after the project is created inside the container
+      - ./setup.sh:/setup.sh # Mount the setup script
+    environment:
+      - DATABASE_URL=mysql://user:password@multitech-mariadb-server:3306/database_name?serverVersion=mariadb-10.6
+    ports:
+      - "8086:80"
+    command: /bin/bash /setup.sh # Execute the script as the container command
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "http://localhost:80"] # Adjust the URL if necessary
+      interval: 30s # Check every 30 seconds
+      retries: 3 # Retry 3 times before marking the container as unhealthy
+      start_period: 10s # Delay before starting health check
+      timeout: 5s # Timeout for each health check
+
+networks:
+  multitech-common-network:
+    external: true

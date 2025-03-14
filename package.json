@@ -1,0 +1,42 @@
+{
+    "name": "multi-techs-utility",
+    "version": "0.0.0",
+    "description": "A CLI to generate projects for different technologies, including GUIs, backends, and development databases.",
+    "bin": {
+        "multi-techs-utility": "./cli.js"
+    },
+    "scripts": {
+        "release:patch": "npm version patch && npm publish",
+        "release:minor": "npm version minor && npm publish",
+        "release:major": "npm version major && npm publish",
+        "test": "echo 'No tests yet' && exit 0",
+        "prepublishOnly": "npm test",
+        "postinstall": "chmod +x cli.js"
+    },
+    "license": "MIT",
+    "author": {
+        "name": "Jean-Philippe Maquestiaux",
+        "email": "maquejp@gmail.com",
+        "url": "https://github.com/maquejp/multi-techs-utility"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/maquejp/multi-techs-utility.git"
+    },
+    "homepage": "https://github.com/maquejp/multi-techs-utility#readme",
+    "bugs": {
+        "url": "https://github.com/maquejp/multi-techs-utility/issues"
+    },
+    "keywords": [
+        "cli",
+        "project-generator",
+        "frameworks",
+        "development",
+        "automation"
+    ],
+    "dependencies": {},
+    "devDependencies": {},
+    "engines": {
+        "bun": ">=1.0.0"
+    }
+}

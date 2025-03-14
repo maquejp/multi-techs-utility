@@ -1,0 +1,25 @@
+services:
+  multitech-mongodb-server:
+    image: mongodb/mongodb-community-server:latest
+    container_name: multitech-mongodb-server
+    networks:
+      - multitech-common-network
+    environment:
+      - MONGODB_INITDB_ROOT_USERNAME=mongoadmin
+      - MONGODB_INITDB_ROOT_PASSWORD=a-nice-admin-password
+    ports:
+      - "27017:27017"
+    volumes:
+      - ./data:/data/db
+      - ./config:/data/configdb
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+networks:
+  multitech-common-network:
+    external: true
