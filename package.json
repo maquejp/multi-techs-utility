@@ -1,6 +1,6 @@
 {
     "name": "multi-techs-utility",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "description": "A CLI to generate projects for different technologies, including GUIs, backends, and development databases.",
     "bin": {
         "multi-techs-utility": "./cli.js"
