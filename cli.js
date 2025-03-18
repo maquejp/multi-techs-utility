@@ -8,7 +8,6 @@ import { access } from 'fs/promises';
 import path, { dirname } from 'path';
 import { fileURLToPath } from 'url';
 
-
 const cl = console.log;
 const cr = console.error;
 
@@ -154,15 +153,15 @@ function findTechnology({ techName, categoryFilter = null }) {
 
 function validateProjectName({ projectName, minLength = 4 }) {
     if (!projectName) {
-        cr(ckr("❌ Invalid project name!\n"));
+        cr(ckr("Invalid project name!\n"));
         process.exit(1);
     }
     if (!/^[a-zA-Z0-9-_]+$/.test(projectName)) {
-        cr(ckr("❌ Invalid project name! Only letters, numbers, dashes, and underscores are allowed.\n"));
+        cr(ckr("Invalid project name! Only letters, numbers, dashes, and underscores are allowed.\n"));
         process.exit(1);
     }
     if (projectName.length < minLength) {
-        cr(ckr(`❌ Project name is too short! It must be at least ${minLength} characters.\n`));
+        cr(ckr(`Project name is too short! It must be at least ${minLength} characters.\n`));
         process.exit(1);
     }
 }
@@ -170,7 +169,6 @@ function validateProjectName({ projectName, minLength = 4 }) {
 // Read package version from package.json
 const packageJsonPath = path.join(__dirname, 'package.json');
 const packageData = JSON.parse(readFileSync(packageJsonPath, 'utf8'));
-const version = packageData.version;
 
 // Initialize commander program
 const program = new Command();
@@ -180,7 +178,7 @@ const commands = {
     version: {
         description: 'Display the current version of the CLI tool',
         usage: `${packageData.name} version`,
-        action: () => cl(`TechCLI version: ${version}`)
+        action: () => cl(`${packageData.name} version ${packageData.version}\n`)
     },
     help: {
         description: 'Display help information for all commands or a specific command',
@@ -204,9 +202,6 @@ const commands = {
     }
 };
 
-// CLI header
-cl(ckb(figlet.textSync('TechCLI', { horizontalLayout: 'full' })));
-
 // Display help for all commands or a specific command
 function showHelp(command) {
     if (command && commands[command]) {
@@ -215,7 +210,7 @@ function showHelp(command) {
         cl(ckm(`Usage: ${commands[command].usage}`));
         cl('\n');
     } else if (command) {
-        cl(ckr(`\n❌ Unknown command: ${command}`));
+        cl(ckr(`\nUnknown command: ${command}`));
         cl(cky('Available commands:'));
         Object.keys(commands).forEach(cmd => {
             cl(ckg(`  ${cmd}`) + ckm(` - ${commands[cmd].description}`));
@@ -238,7 +233,7 @@ function listTechnologies(category) {
             cl(ckg(`  - ${tech}`));
         });
     } else if (category) {
-        cr(ckr(`\n❌ Unknown category: ${category}`));
+        cr(ckr(`\nUnknown category: ${category}`));
         cl(cky('Available categories:'));
         Object.keys(techs).forEach(cat => {
             cl(ckg(`  ${cat}`));
@@ -265,7 +260,7 @@ function showTechInfo(technology) {
         cl(ckm(`Description: ${techInfo.description}`));
         cl(ckm(`Documentation: ${techInfo.documentation}`));
     } else {
-        cl(ckr(`\n❌ Unknown technology: ${technology}`));
+        cl(ckr(`\nUnknown technology: ${technology}`));
         cl(cky(`\nRun "${packageData.name} list" to see all available technologies.`));
     }
     cl('\n');
@@ -278,19 +273,25 @@ async function runScript({ scriptPath, projectName }) {
 
         const module = await import(scriptPath);
 
+        let executableFunction;
+
         if (module.default && typeof module.default === 'function') {
-            await module.default(projectName);
+            executableFunction = module.default;
         } else if (module.run && typeof module.run === 'function') {
             // Fallback to a named "run" function if available
-            await module.run(projectName);
+            executableFunction = module.run;
         } else {
-            ce(ckr(`❌ No executable function found in ${fullPath}`));
+            ce(ckr(`No executable function found in ${fullPath}`));
             process.exit(1);
         }
+
+        await executableFunction(projectName);
+
         cl(ckg('\nScript executed successfully.'));
 
     } catch (error) {
-        ce(`\nError executing script: ${scriptPath}`);
+        cr(`\nError executing script: ${scriptPath}`);
+        cr(ckr(error));
         process.exit(1);
     }
 }
@@ -299,7 +300,7 @@ async function runScript({ scriptPath, projectName }) {
 // Create a project with a single technology category
 async function createProject({ projectName, options }) {
     if (!projectName) {
-        cl(ckr('\n❌ Please provide a project name.'));
+        cl(ckr('\nPlease provide a project name.'));
         return;
     }
 
@@ -309,13 +310,13 @@ async function createProject({ projectName, options }) {
     const categories = Object.keys(techs);
 
     if (!category || !categories.includes(category)) {
-        cl(ckr(`\n❌ Please specify a valid category (use the -c option): ${categories.join(', ')}\n`));
+        cl(ckr(`\nPlease specify a valid category (use the -c option): ${categories.join(', ')}\n`));
         return;
     }
 
     if (!technology) {
-        cl(ckr(`\n❌ Please specify a technology (use the -t option) for the category "${category}"`));
-        cl(cky(`\nℹ️ Available ${category} technologies:`));
+        cl(ckr(`\nPlease specify a technology (use the -t option) for the category "${category}"`));
+        cl(cky(`\nAvailable ${category} technologies:`));
         Object.keys(techs[category].items).forEach(tech => cl(ckg(`  - ${tech}`)));
         return;
     }
@@ -323,8 +324,8 @@ async function createProject({ projectName, options }) {
     const techInfo = findTechnology({ techName: technology, categoryFilter: category });
 
     if (!techInfo) {
-        cl(ckr(`\n❌ Unknown technology "${technology}" in the category "${category}"`));
-        cl(cky(`\nℹ️ Available technologies in the category "${category}" :`));
+        cl(ckr(`\nUnknown technology "${technology}" in the category "${category}"`));
+        cl(cky(`\nAvailable technologies in the category "${category}" :`));
         Object.keys(techs[category].items).forEach(tech => cl(ckg(`  - ${tech}`)));
         return;
     }
@@ -342,11 +343,12 @@ async function createProject({ projectName, options }) {
             access(scriptPath);
 
             await runScript({ scriptPath, projectName });
-        } catch {
-            cl(ckr(`\n❌ Script not found at path: ${scriptPath}`));
+        } catch (error) {
+            cl(ckr(`\nScript not found at path: ${scriptPath}`));
+            cr(ckr(error));
         }
     } else {
-        cl(ckr('\n❌ No script defined for this technology.'));
+        cl(ckr('\nNo script defined for this technology.'));
     }
 
     cl('\n');
@@ -355,7 +357,6 @@ async function createProject({ projectName, options }) {
 
 // Define and register commands
 program
-    .version(version, '-v, --version', 'Output the current version')
     .description('A CLI tool for managing web development technologies');
 
 program
@@ -385,7 +386,7 @@ program
     .option('-t, --technology <tech>', 'Specific technology to use within the category')
     .action((projectName, options) => {
         if (!projectName) {
-            cr(ckr('❌ Project name is required.\n'));
+            cr(ckr('Project name is required.\n'));
             process.exit(1);
         }
         validateProjectName({ projectName, minLength: 4 })
@@ -395,10 +396,13 @@ program
 // Handle unknown commands
 program
     .on('command:*', () => {
-        cr(ckr(`\n❌ Invalid command: ${program.args.join(' ')}`));
-        cl(cky('See --help for a list of available commands.'));
+        cr(ckr(`\nInvalid command: ${program.args.join(' ')}`));
+        cl(cky('\nSee -h, --help for a list of available commands.\n'));
         process.exit(1);
     });
+
+// CLI header
+cl(ckb(figlet.textSync('TechCLI', { horizontalLayout: 'full' })));
 
 // Parse command line arguments
 program.parse(process.argv);
