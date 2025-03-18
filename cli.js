@@ -1,148 +1,409 @@
-#!/usr/bin/env bun
+#!/usr/bin/env node
 
-import { readFileSync } from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
+import chalk from 'chalk';
+import { Command } from 'commander';
+import figlet from 'figlet';
+import { readFileSync } from 'fs';
+import { access } from 'fs/promises';
+import path, { dirname } from 'path';
+import { fileURLToPath } from 'url';
 
-console.log("🌟 Welcome to Multi-Techs Utility!");
-console.log("This project helps generate projects for different technologies.\n");
 
-// Define available web GUI technologies
-const webTechs = ["angular", "astro", "reactjs", "svelte", "vuejs"];
+const cl = console.log;
+const cr = console.error;
 
-// Define available BACKENDS technologies
-const backendsTechs = ["apiplatform", "expressjs", "springboot"];
+// Chalk
+const ckr = (msg) => chalk.red(`${msg}`);      // Error
+const cky = (msg) => chalk.yellow(`${msg}`);   // Warning
+const ckg = (msg) => chalk.green(`${msg}`);    // Success
+const ckgr = (msg) => chalk.gray(`${msg}`);    // Info
+const ckc = (msg) => chalk.cyan(`${msg}`);     // Highlight
+const ckm = (msg) => chalk.magenta(`${msg}`);  // Action
+const ckb = (msg) => chalk.blue(`${msg}`); // Blue
 
-// Define available DATABASES technologies
-const databasesTechs = ["mariadb", "mongodb", "oracleenterprise", "postgresql"];
+// Get __dirname equivalent in ESM
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
-// List of commands and their descriptions
-const commandsList = [
-    { name: "hello", description: `Prints "Hello, world!"` },
-    { name: "version", description: `Displays the CLI version` },
-    { name: "help", description: `Shows this help message` },
-    ...webTechs.map((tech) => ({
-        name: `guis:web:${tech} <name>`,
-        description: `Creates a guis web project with the given name using ${tech} `
-    })),
-    ...backendsTechs.map((tech) => ({
-        name: `backends:${tech} <name>`,
-        description: `Creates a backend project with the given name using ${tech}`
-    })),
-    ...databasesTechs.map((tech) => ({
-        name: `databases:${tech} <name>`,
-        description: `Creates a database project (Docker) with the given name using ${tech}`
-    }))
-];
-
-// Determine max length of command names for proper alignment
-const maxCommandLength = Math.max(...commandsList.map(cmd => cmd.name.length));
-const paddingSpace = 2; // Space between command and description
-
-function formatCommand(name, description) {
-    const padding = " ".repeat(maxCommandLength - name.length + paddingSpace);
-    return `  ${name}${padding}${description}`;
-}
-
-const usage = `
-Usage:
-  multi-techs-utility <command> [options]
-
-Commands:
-${commandsList.map(cmd => formatCommand(cmd.name, cmd.description)).join("\n")}
-
-Examples:
-  multi-techs-utility hello
-  multi-techs-utility version
-${webTechs.map(tech => `  multi-techs-utility guis:web:${tech} my-${tech}-app`).join("\n")}
-${backendsTechs.map(tech => `  multi-techs-utility backends:${tech} my-${tech}-app`).join("\n")}
-${databasesTechs.map(tech => `  multi-techs-utility databases:${tech} my-${tech}-db`).join("\n")}
-  multi-techs-utility help
-`;
-
-async function getVersion() {
-    try {
-        const packageJsonPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "package.json");
-        const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf-8"));
-        console.log(`📦 Multi-Techs Utility v${packageJson.version}`);
-    } catch (error) {
-        console.error("⚠️ Error reading version:", error.message);
-    }
-}
-
-async function runScript(scriptPath, ...args) {
-    try {
-        const __dirname = path.dirname(fileURLToPath(import.meta.url));
-        const fullPath = path.resolve(__dirname, scriptPath);
-        const module = await import(fullPath);
-
-        if (module.default) {
-            await module.default(...args);
-        } else {
-            console.error(`⚠️ No default export found in ${scriptPath}`);
+// Unified tech data structure
+const techs = {
+    "web": {
+        name: "Web Technologies",
+        items: {
+            "angular": {
+                description: "A platform for building mobile and desktop web applications",
+                documentation: "https://angular.io/docs",
+                script: "_tools/guis/web/angular/index.js"
+            },
+            "astro": {
+                description: "Framework for building fast, content-focused websites",
+                documentation: "https://docs.astro.build",
+                script: "_tools/guis/web/astro/index.js"
+            },
+            "reactjs": {
+                description: "A JavaScript library for building user interfaces",
+                documentation: "https://react.dev/reference/react",
+                script: "_tools/guis/web/reactjs/index.js"
+            },
+            "svelte": {
+                description: "Cybernetically enhanced web apps with less code",
+                documentation: "https://svelte.dev/docs",
+                script: "_tools/guis/web/svelte/index.js"
+            },
+            "vuejs": {
+                description: "Progressive JavaScript framework for building UIs",
+                documentation: "https://vuejs.org/guide",
+                script: "_tools/guis/web/vue/index.js"
+            }
         }
-    } catch (error) {
-        console.error(`⚠️ Error executing script: ${scriptPath}`);
-        console.error(error.message);
+    },
+    "mobile": {
+        name: "Mobile Technologies",
+        items: {
+            "flutter": {
+                description: "UI toolkit for building natively compiled applications for mobile, web, and desktop from a single codebase",
+                documentation: "https://flutter.dev/docs",
+                script: "_tools/guis/mobile/flutter/index.js"
+            },
+            "reactnative": {
+                description: "Framework for building native apps using React",
+                documentation: "https://reactnative.dev/docs/getting-started",
+                script: "_tools/guis/mobile/reactnative/index.js"
+            },
+            "ionic": {
+                description: "Open-source mobile UI toolkit for building high-quality, cross-platform apps",
+                documentation: "https://ionicframework.com/docs",
+                script: "_tools/guis/mobile/ionic/index.js"
+            }
+        }
+    },
+    "backend": {
+        name: "Backend Technologies",
+        items: {
+            "apiplatform": {
+                description: "REST and GraphQL framework to build API-driven projects",
+                documentation: "https://api-platform.com/docs",
+                script: "_tools/backends/apiplatform/index.js"
+            },
+            "expressjs": {
+                description: "Fast, unopinionated, minimalist web framework for Node.js",
+                documentation: "_tools/backends/expressjs/index.js"
+            },
+            "springboot": {
+                description: "Java-based framework for building web applications and microservices",
+                documentation: "https://spring.io/projects/spring-boot",
+                script: "_tools/backends/springboot/index.js"
+            }
+        }
+    },
+    "database": {
+        name: "Database Technologies",
+        items: {
+            "mariadb": {
+                description: "Community-developed fork of MySQL relational database",
+                documentation: "https://mariadb.org/documentation",
+                script: "_tools/databases/mariadb/index.js"
+            },
+            "mongodb": {
+                description: "NoSQL document database with scalability and flexibility",
+                documentation: "https://docs.mongodb.com",
+                script: "_tools/databases/mongodb/index.js"
+            },
+            "oracleenterprise": {
+                description: "Enterprise-grade relational database management system",
+                documentation: "https://docs.oracle.com/en/database",
+                script: "_tools/databases/oracleenterprise/index.js"
+            },
+            "postgresql": {
+                description: "Powerful, open source object-relational database system",
+                documentation: "https://www.postgresql.org/docs",
+                script: "_tools/databases/postgresql/index.js"
+            }
+        }
     }
-}
-
-const commands = {
-    hello: () => console.log("👋 Hello, world!"),
-    version: getVersion,
-    help: () => console.log(usage),
 };
 
-// Dynamically register web GUI commands
-webTechs.forEach((tech) => {
-    commands[`guis:web:${tech}`] = async (args) => {
-        if (!args[0]) {
-            console.error(`❌ Missing project name! Usage: multi-techs-utility guis:web:${tech} <name>`);
-            process.exit(1);
+// Helper function to find a technology and optionally restrict to a specific category
+function findTechnology({ techName, categoryFilter = null }) {
+    if (categoryFilter) {
+        const categoryData = techs[categoryFilter];
+        if (categoryData && categoryData.items[techName]) {
+            return {
+                name: techName,
+                category: categoryFilter,
+                ...categoryData.items[techName]
+            };
         }
-        await runScript(`_tools/guis/web/${tech}/index.js`, args[0]);
-    };
-});
-
-// Dynamically register BACKENDS commands
-backendsTechs.forEach((tech) => {
-    commands[`backends:${tech}`] = async (args) => {
-        if (!args[0]) {
-            console.error(`❌ Missing project name! Usage: multi-techs-utility backends:${tech} <name>`);
-            process.exit(1);
-        }
-        await runScript(`_tools/backends/${tech}/index.js`, args[0]);
-    };
-});
-
-// Dynamically register BACKENDS commands
-databasesTechs.forEach((tech) => {
-    commands[`databases:${tech}`] = async (args) => {
-        if (!args[0]) {
-            console.error(`❌ Missing project name! Usage: multi-techs-utility databases:${tech} <name>`);
-            process.exit(1);
-        }
-        await runScript(`_tools/databases/${tech}/index.js`, args[0]);
-    };
-});
-
-async function main() {
-    const args = process.argv.slice(2);
-    if (args.length > 2) {
-        console.error("❌ too much arguments");
-        console.log(usage);
-        process.exit(1);
+        return null; // Tech not found in the specified category
     }
 
-    const command = args[0];
-
-    if (!command || !commands[command]) {
-        console.error("❌ Unknown command:", command);
-        console.log(usage);
-        process.exit(1);
+    // Search in all categories if no category filter is provided
+    for (const [category, categoryData] of Object.entries(techs)) {
+        if (categoryData.items[techName]) {
+            return {
+                name: techName,
+                category: category,
+                ...categoryData.items[techName]
+            };
+        }
     }
 
-    await commands[command](args.slice(1));
+    return null; // Tech not found
 }
 
-main();
+
+function validateProjectName({ projectName, minLength = 4 }) {
+    if (!projectName) {
+        cr(ckr("❌ Invalid project name!\n"));
+        process.exit(1);
+    }
+    if (!/^[a-zA-Z0-9-_]+$/.test(projectName)) {
+        cr(ckr("❌ Invalid project name! Only letters, numbers, dashes, and underscores are allowed.\n"));
+        process.exit(1);
+    }
+    if (projectName.length < minLength) {
+        cr(ckr(`❌ Project name is too short! It must be at least ${minLength} characters.\n`));
+        process.exit(1);
+    }
+}
+
+// Read package version from package.json
+const packageJsonPath = path.join(__dirname, 'package.json');
+const packageData = JSON.parse(readFileSync(packageJsonPath, 'utf8'));
+const version = packageData.version;
+
+// Initialize commander program
+const program = new Command();
+
+// Command definitions with descriptions and examples
+const commands = {
+    version: {
+        description: 'Display the current version of the CLI tool',
+        usage: `${packageData.name} version`,
+        action: () => cl(`TechCLI version: ${version}`)
+    },
+    help: {
+        description: 'Display help information for all commands or a specific command',
+        usage: `${packageData.name} help [command]`,
+        action: (cmd) => showHelp(cmd)
+    },
+    list: {
+        description: 'List all available technologies or filter by category',
+        usage: `${packageData.name} list [category]`,
+        action: (category) => listTechnologies(category)
+    },
+    info: {
+        description: 'Show detailed information about a specific technology',
+        usage: `${packageData.name} info <technology>`,
+        action: (tech) => showTechInfo(tech)
+    },
+    create: {
+        description: "Create a new project with a selected technology's category",
+        usage: `${packageData.name}  create <project-name> --category <category> --technology <tech>`,
+        action: (projectName, options) => createProject(projectName, options)
+    }
+};
+
+// CLI header
+cl(ckb(figlet.textSync('TechCLI', { horizontalLayout: 'full' })));
+
+// Display help for all commands or a specific command
+function showHelp(command) {
+    if (command && commands[command]) {
+        cl(ckc(`\nCommand: ${command}`));
+        cl(ckm(`Description: ${commands[command].description}`));
+        cl(ckm(`Usage: ${commands[command].usage}`));
+        cl('\n');
+    } else if (command) {
+        cl(ckr(`\n❌ Unknown command: ${command}`));
+        cl(cky('Available commands:'));
+        Object.keys(commands).forEach(cmd => {
+            cl(ckg(`  ${cmd}`) + ckm(` - ${commands[cmd].description}`));
+        });
+    } else {
+        cl(ckc('\nAvailable commands:'));
+        Object.keys(commands).forEach(cmd => {
+            cl(ckg(`  ${cmd}`) + ckm(` - ${commands[cmd].description}`));
+            cl(ckgr(`    Usage: ${commands[cmd].usage}`));
+        });
+        cl('\n');
+    }
+}
+
+// List technologies
+function listTechnologies(category) {
+    if (category && techs[category]) {
+        cl(ckc(`\nAvailable ${techs[category].name}:`));
+        Object.keys(techs[category].items).forEach(tech => {
+            cl(ckg(`  - ${tech}`));
+        });
+    } else if (category) {
+        cr(ckr(`\n❌ Unknown category: ${category}`));
+        cl(cky('Available categories:'));
+        Object.keys(techs).forEach(cat => {
+            cl(ckg(`  ${cat}`));
+        });
+    } else {
+        cl(ckc('\nAll available technologies:'));
+        Object.keys(techs).forEach(category => {
+            cl(cky(`\n${techs[category].name}:`));
+            Object.keys(techs[category].items).forEach(tech => {
+                cl(ckg(`  - ${tech}`));
+            });
+        });
+    }
+    cl('\n');
+}
+
+// Show detailed information about a technology
+function showTechInfo(technology) {
+    const techInfo = findTechnology({ techName: technology });
+
+    if (techInfo) {
+        cl(ckc(`\nInformation about ${technology}:`));
+        cl(ckm(`Category: ${techs[techInfo.category].name}`));
+        cl(ckm(`Description: ${techInfo.description}`));
+        cl(ckm(`Documentation: ${techInfo.documentation}`));
+    } else {
+        cl(ckr(`\n❌ Unknown technology: ${technology}`));
+        cl(cky(`\nRun "${packageData.name} list" to see all available technologies.`));
+    }
+    cl('\n');
+}
+
+
+async function runScript({ scriptPath, projectName }) {
+    try {
+        cl(ckgr(`\nExecuting script...`));
+
+        const module = await import(scriptPath);
+
+        if (module.default && typeof module.default === 'function') {
+            await module.default(projectName);
+        } else if (module.run && typeof module.run === 'function') {
+            // Fallback to a named "run" function if available
+            await module.run(projectName);
+        } else {
+            ce(ckr(`❌ No executable function found in ${fullPath}`));
+            process.exit(1);
+        }
+        cl(ckg('\nScript executed successfully.'));
+
+    } catch (error) {
+        ce(`\nError executing script: ${scriptPath}`);
+        process.exit(1);
+    }
+}
+
+
+// Create a project with a single technology category
+async function createProject({ projectName, options }) {
+    if (!projectName) {
+        cl(ckr('\n❌ Please provide a project name.'));
+        return;
+    }
+
+    validateProjectName({ projectName, minLength: 4 });
+
+    const { category, technology } = options;
+    const categories = Object.keys(techs);
+
+    if (!category || !categories.includes(category)) {
+        cl(ckr(`\n❌ Please specify a valid category (use the -c option): ${categories.join(', ')}\n`));
+        return;
+    }
+
+    if (!technology) {
+        cl(ckr(`\n❌ Please specify a technology (use the -t option) for the category "${category}"`));
+        cl(cky(`\nℹ️ Available ${category} technologies:`));
+        Object.keys(techs[category].items).forEach(tech => cl(ckg(`  - ${tech}`)));
+        return;
+    }
+
+    const techInfo = findTechnology({ techName: technology, categoryFilter: category });
+
+    if (!techInfo) {
+        cl(ckr(`\n❌ Unknown technology "${technology}" in the category "${category}"`));
+        cl(cky(`\nℹ️ Available technologies in the category "${category}" :`));
+        Object.keys(techs[category].items).forEach(tech => cl(ckg(`  - ${tech}`)));
+        return;
+    }
+
+    cl(ckc(`\nCreating project "${projectName}" with ${category} technology:`));
+    cl(ckg(`  ${category.charAt(0).toUpperCase() + category.slice(1)}: ${technology}`));
+
+    if (techInfo.script) {
+        const scriptPath = techInfo.script;
+
+        try {
+            const __dirname = path.dirname(fileURLToPath(import.meta.url));
+            const scriptPath = path.resolve(__dirname, techInfo.script);
+
+            access(scriptPath);
+
+            await runScript({ scriptPath, projectName });
+        } catch {
+            cl(ckr(`\n❌ Script not found at path: ${scriptPath}`));
+        }
+    } else {
+        cl(ckr('\n❌ No script defined for this technology.'));
+    }
+
+    cl('\n');
+}
+
+
+// Define and register commands
+program
+    .version(version, '-v, --version', 'Output the current version')
+    .description('A CLI tool for managing web development technologies');
+
+program
+    .command('version')
+    .description(commands.version.description)
+    .action(commands.version.action);
+
+program
+    .command('help [command]')
+    .description(commands.help.description)
+    .action(commands.help.action);
+
+program
+    .command('list [category]')
+    .description(commands.list.description)
+    .action(commands.list.action);
+
+program
+    .command('info [technology]')
+    .description(commands.info.description)
+    .action(commands.info.action);
+
+program
+    .command('create [projectName]')
+    .description("Create a new project with a selected technology's category")
+    .option('-c, --category <category>', 'Technology category (web, backend, database)')
+    .option('-t, --technology <tech>', 'Specific technology to use within the category')
+    .action((projectName, options) => {
+        if (!projectName) {
+            cr(ckr('❌ Project name is required.\n'));
+            process.exit(1);
+        }
+        validateProjectName({ projectName, minLength: 4 })
+        createProject({ projectName, options });
+    });
+
+// Handle unknown commands
+program
+    .on('command:*', () => {
+        cr(ckr(`\n❌ Invalid command: ${program.args.join(' ')}`));
+        cl(cky('See --help for a list of available commands.'));
+        process.exit(1);
+    });
+
+// Parse command line arguments
+program.parse(process.argv);
+
+// If no arguments, show help
+if (!process.argv.slice(2).length) {
+    program.outputHelp();
+}
