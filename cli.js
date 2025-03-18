@@ -5,6 +5,7 @@ import { Command } from 'commander';
 import figlet from 'figlet';
 import { readFileSync } from 'fs';
 import { access } from 'fs/promises';
+import inquirer from 'inquirer';
 import path, { dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -150,18 +151,17 @@ function findTechnology({ techName, categoryFilter = null }) {
     return null; // Tech not found
 }
 
-
 function validateProjectName({ projectName, minLength = 4 }) {
     if (!projectName) {
-        cr(ckr("Invalid project name!\n"));
+        cr(ckr("\n\nInvalid project name!\n"));
         process.exit(1);
     }
     if (!/^[a-zA-Z0-9-_]+$/.test(projectName)) {
-        cr(ckr("Invalid project name! Only letters, numbers, dashes, and underscores are allowed.\n"));
+        cr(ckr("\n\nInvalid project name! Only letters, numbers, dashes, and underscores are allowed.\n"));
         process.exit(1);
     }
     if (projectName.length < minLength) {
-        cr(ckr(`Project name is too short! It must be at least ${minLength} characters.\n`));
+        cr(ckr(`\n\nProject name is too short! It must be at least ${minLength} characters.\n`));
         process.exit(1);
     }
 }
@@ -299,26 +299,67 @@ async function runScript({ scriptPath, projectName }) {
 
 // Create a project with a single technology category
 async function createProject({ projectName, options }) {
-    if (!projectName) {
-        cl(ckr('\nPlease provide a project name.'));
-        return;
-    }
-
-    validateProjectName({ projectName, minLength: 4 });
-
-    const { category, technology } = options;
     const categories = Object.keys(techs);
 
+    // Step 1: Ask for category if missing
+    let category = options.category;
     if (!category || !categories.includes(category)) {
-        cl(ckr(`\nPlease specify a valid category (use the -c option): ${categories.join(', ')}\n`));
-        return;
+        const categoryAnswer = await inquirer.prompt([
+            {
+                type: 'list',
+                name: 'category',
+                message: 'Select a technology category:',
+                default: 'web',
+                choices: categories.map((cat) => ({
+                    name: `${techs[cat].name} (${cat})`,
+                    value: cat,
+                })),
+            },
+        ]);
+        category = categoryAnswer.category;
     }
 
-    if (!technology) {
-        cl(ckr(`\nPlease specify a technology (use the -t option) for the category "${category}"`));
-        cl(cky(`\nAvailable ${category} technologies:`));
-        Object.keys(techs[category].items).forEach(tech => cl(ckg(`  - ${tech}`)));
-        return;
+    // Step 2: Ask for technology if missing
+    let technology = options.technology;
+    if (!technology || !techs[category].items[technology]) {
+        const techChoices = Object.keys(techs[category].items).map((tech) => ({
+            name: `${tech} - ${techs[category].items[tech].description}`,
+            value: tech,
+        }));
+
+        const defaultTech = category === 'web' ? 'reactjs' : techChoices[0].value; // Default to Angular for "web"
+
+        const techAnswer = await inquirer.prompt([
+            {
+                type: 'list',
+                name: 'technology',
+                message: `Select a technology from ${techs[category].name}:`,
+                default: defaultTech,
+                choices: techChoices,
+            },
+        ]);
+        technology = techAnswer.technology;
+    }
+
+    // Step 3: Ask for project name if missing
+    if (!projectName) {
+        const answers = await inquirer.prompt([
+            {
+                type: 'input',
+                name: 'projectName',
+                message: 'Enter your project name:',
+                default: `my-${category}-${technology}-app`,
+                validate: (input) => {
+                    try {
+                        validateProjectName({ projectName: input, minLength: 4 });
+                        return true;
+                    } catch (error) {
+                        return error.message; // Display validation error message in the prompt
+                    }
+                },
+            },
+        ]);
+        projectName = answers.projectName;
     }
 
     const techInfo = findTechnology({ techName: technology, categoryFilter: category });
@@ -385,11 +426,6 @@ program
     .option('-c, --category <category>', 'Technology category (web, backend, database)')
     .option('-t, --technology <tech>', 'Specific technology to use within the category')
     .action((projectName, options) => {
-        if (!projectName) {
-            cr(ckr('Project name is required.\n'));
-            process.exit(1);
-        }
-        validateProjectName({ projectName, minLength: 4 })
         createProject({ projectName, options });
     });
 
@@ -402,7 +438,7 @@ program
     });
 
 // CLI header
-cl(ckb(figlet.textSync('TechCLI', { horizontalLayout: 'full' })));
+cl(ckb(figlet.textSync(packageData.name, { horizontalLayout: 'full' })));
 
 // Parse command line arguments
 program.parse(process.argv);
