@@ -8,7 +8,6 @@ import path from "path";
 export function ensureFolderExists(folderPath) {
     if (!existsSync(folderPath)) {
         mkdirSync(folderPath, { recursive: true });
-        console.log(`📂 Created folder: ${folderPath}`);
     }
 }
 
@@ -59,18 +58,14 @@ export async function assemblePath({
 
 
 export async function createFolderStructureAndReadmes({ basePath, folders, withReadmes = false }) {
-    console.log(`🔧 Creating suggested folder structure in ${basePath}`);
     for (const folder of folders) {
         const folderPath = path.join(basePath, folder.name);
-        console.log(`🔧 Creating folder: ${folderPath}`);
         ensureFolderExists(folderPath);
         if (withReadmes) {
             const readmePath = path.join(folderPath, "README.md");
             writeFileSync(readmePath, `${folder.readmeHeader}\n`, "utf-8");
         }
-        console.log(`✅ Folder created: ${folderPath}`);
     }
-    console.log(`✅ Suggested folder structure created in ${basePath}`);
 }
 
 export function sanitiseText({ text, capitalize }) {

@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-import chalk from 'chalk';
 import { Command } from 'commander';
 import figlet from 'figlet';
 import { readFileSync } from 'fs';
@@ -8,23 +7,11 @@ import { access } from 'fs/promises';
 import { rainbow } from 'gradient-string';
 import inquirer from 'inquirer';
 import path, { dirname } from 'path';
+import { cl, cr, ckr, cky, ckg, ckgr, ckc, ckm } from './_tools/common/logging';
 import { fileURLToPath } from 'url';
 
-const cl = console.log;
-const cr = console.error;
-
-// Chalk
-const ckr = (msg) => chalk.red(`${msg}`);      // Error
-const cky = (msg) => chalk.yellow(`${msg}`);   // Warning
-const ckg = (msg) => chalk.green(`${msg}`);    // Success
-const ckgr = (msg) => chalk.gray(`${msg}`);    // Info
-const ckc = (msg) => chalk.cyan(`${msg}`);     // Highlight
-const ckm = (msg) => chalk.magenta(`${msg}`);  // Action
-const ckb = (msg) => chalk.blue(`${msg}`); // Blue
-
-// Get __dirname equivalent in ESM
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const scriptFilename = fileURLToPath(import.meta.url);
+const scriptDirname = dirname(scriptFilename);
 
 // Unified tech data structure
 const techs = {
@@ -34,27 +21,27 @@ const techs = {
             "angular": {
                 description: "A platform for building mobile and desktop web applications",
                 documentation: "https://angular.io/docs",
-                script: "_tools/guis/web/angular/index.js"
+                script: `${scriptDirname}/_tools/guis/web/angular/index.js`
             },
             "astro": {
                 description: "Framework for building fast, content-focused websites",
                 documentation: "https://docs.astro.build",
-                script: "_tools/guis/web/astro/index.js"
+                script: `${scriptDirname}/_tools/guis/web/astro/index.js`
             },
             "reactjs": {
                 description: "A JavaScript library for building user interfaces",
                 documentation: "https://react.dev/reference/react",
-                script: "_tools/guis/web/reactjs/index.js"
+                script: `${scriptDirname}/_tools/guis/web/reactjs/index.js`
             },
             "svelte": {
                 description: "Cybernetically enhanced web apps with less code",
                 documentation: "https://svelte.dev/docs",
-                script: "_tools/guis/web/svelte/index.js"
+                script: `${scriptDirname}/_tools/guis/web/svelte/index.js`
             },
             "vuejs": {
                 description: "Progressive JavaScript framework for building UIs",
                 documentation: "https://vuejs.org/guide",
-                script: "_tools/guis/web/vue/index.js"
+                script: `${scriptDirname}/_tools/guis/web/vue/index.js`
             }
         }
     },
@@ -64,17 +51,17 @@ const techs = {
             "flutter": {
                 description: "UI toolkit for building natively compiled applications for mobile, web, and desktop from a single codebase",
                 documentation: "https://flutter.dev/docs",
-                script: "_tools/guis/mobile/flutter/index.js"
+                script: `${scriptDirname}/_tools/guis/mobile/flutter/index.js`
             },
             "reactnative": {
                 description: "Framework for building native apps using React",
                 documentation: "https://reactnative.dev/docs/getting-started",
-                script: "_tools/guis/mobile/reactnative/index.js"
+                script: `${scriptDirname}/_tools/guis/mobile/reactnative/index.js`
             },
             "ionic": {
                 description: "Open-source mobile UI toolkit for building high-quality, cross-platform apps",
                 documentation: "https://ionicframework.com/docs",
-                script: "_tools/guis/mobile/ionic/index.js"
+                script: `${scriptDirname}/_tools/guis/mobile/ionic/index.js`
             }
         }
     },
@@ -84,16 +71,17 @@ const techs = {
             "apiplatform": {
                 description: "REST and GraphQL framework to build API-driven projects",
                 documentation: "https://api-platform.com/docs",
-                script: "_tools/backends/apiplatform/index.js"
+                script: `${scriptDirname}/_tools/backends/apiplatform/index.js`
             },
             "expressjs": {
                 description: "Fast, unopinionated, minimalist web framework for Node.js",
-                documentation: "_tools/backends/expressjs/index.js"
+                documentation: "https://expressjs.com/en/starter/installing.html",
+                script: `${scriptDirname}/_tools/backends/expressjs/index.js`
             },
             "springboot": {
                 description: "Java-based framework for building web applications and microservices",
                 documentation: "https://spring.io/projects/spring-boot",
-                script: "_tools/backends/springboot/index.js"
+                script: `${scriptDirname}/_tools/backends/springboot/index.js`
             }
         }
     },
@@ -103,22 +91,22 @@ const techs = {
             "mariadb": {
                 description: "Community-developed fork of MySQL relational database",
                 documentation: "https://mariadb.org/documentation",
-                script: "_tools/databases/mariadb/index.js"
+                script: `${scriptDirname}/_tools/databases/mariadb/index.js`
             },
             "mongodb": {
                 description: "NoSQL document database with scalability and flexibility",
                 documentation: "https://docs.mongodb.com",
-                script: "_tools/databases/mongodb/index.js"
+                script: `${scriptDirname}/_tools/databases/mongodb/index.js`
             },
             "oracleenterprise": {
                 description: "Enterprise-grade relational database management system",
                 documentation: "https://docs.oracle.com/en/database",
-                script: "_tools/databases/oracleenterprise/index.js"
+                script: `${scriptDirname}/_tools/databases/oracleenterprise/index.js`
             },
             "postgresql": {
                 description: "Powerful, open source object-relational database system",
                 documentation: "https://www.postgresql.org/docs",
-                script: "_tools/databases/postgresql/index.js"
+                script: `${scriptDirname}/_tools/databases/postgresql/index.js`
             }
         }
     }
@@ -154,15 +142,23 @@ function findTechnology({ techName, categoryFilter = null }) {
 
 function validateProjectName({ projectName, minLength = 4 }) {
     if (!projectName) {
-        cr(ckr("\n\nInvalid project name!\n"));
+        console.error(`Error: Project name is required and must be a string.`);
         process.exit(1);
     }
-    if (!/^[a-zA-Z0-9-_]+$/.test(projectName)) {
-        cr(ckr("\n\nInvalid project name! Only letters, numbers, dashes, and underscores are allowed.\n"));
+
+    const regex = /^[A-Za-z][A-Za-z0-9_-]*$/;
+
+    if (!regex.test(projectName)) {
+        cr("Error: Invalid project name.");
+        cr("       - Must start with a letter (a-z, A-Z).");
+        cr("       - Cannot start by an underscore (_)");
+        cr("       - Cannot start by an number");
+        cr("       - Can contain letters (a-z, A-Z), numbers (0-9), underscore (_) or dash (-)");
         process.exit(1);
     }
+
     if (projectName.length < minLength) {
-        cr(ckr(`\n\nProject name is too short! It must be at least ${minLength} characters.\n`));
+        console.error(`Error: Project name must be at least ${minLength} characters.`);
         process.exit(1);
     }
 }
@@ -286,7 +282,7 @@ async function runScript({ scriptPath, projectName }) {
             process.exit(1);
         }
 
-        await executableFunction(projectName);
+        await executableFunction({ projectName, parentProjectDir: process.cwd() });
 
         cl(ckg('\nScript executed successfully.'));
 
@@ -361,6 +357,8 @@ async function createProject({ projectName, options }) {
             },
         ]);
         projectName = answers.projectName;
+    } else {
+        validateProjectName({ projectName: projectName, minLength: 4 });
     }
 
     const techInfo = findTechnology({ techName: technology, categoryFilter: category });
@@ -379,9 +377,7 @@ async function createProject({ projectName, options }) {
         const scriptPath = techInfo.script;
 
         try {
-            const __dirname = path.dirname(fileURLToPath(import.meta.url));
-            const scriptPath = path.resolve(__dirname, techInfo.script);
-
+            const scriptPath = path.resolve(scriptDirname, techInfo.script);
             access(scriptPath);
 
             await runScript({ scriptPath, projectName });
