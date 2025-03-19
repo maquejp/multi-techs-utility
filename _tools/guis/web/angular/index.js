@@ -25,12 +25,10 @@ export default async function ({ projectName, parentProjectDir }) {
 
 function initialiseFramework({ projectName }) {
     cl(`\n1. Initialising Angular project: ${projectName}...`);
-
     cl(`   Creating Angular project ${projectName}`);
     execSync(`ng new ${projectName} --style=css --ssr=false --package-manager bun > /dev/null 2>&1`, {
         stdio: "inherit",
     });
-
     cl("   Done!");
 }
 
