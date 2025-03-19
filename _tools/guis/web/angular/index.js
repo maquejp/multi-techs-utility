@@ -34,7 +34,6 @@ function initialiseFramework({ projectName }) {
     cl("   Done!");
 }
 
-
 function setupFramework({ projectName, parentProjectDir }) {
     cl(`\n2. Setting up Angular project: ${projectName}...`);
     process.chdir(projectName);
