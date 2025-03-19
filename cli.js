@@ -41,7 +41,7 @@ const techs = {
             "vuejs": {
                 description: "Progressive JavaScript framework for building UIs",
                 documentation: "https://vuejs.org/guide",
-                script: `${scriptDirname}/_tools/guis/web/vue/index.js`
+                script: `${scriptDirname}/_tools/guis/web/vuejs/index.js`
             }
         }
     },

@@ -1,104 +1,64 @@
 import { execSync } from "child_process";
-import { readFileSync, writeFileSync } from "fs";
-import path from "path";
-import { assemblePath, createFolderStructureAndReadmes, getFormattedDate, sanitiseText, validateProjectName } from "../../../common/common";
+import { cl, cr } from "../../../common/logging";
+import { readFileSync, unlinkSync, writeFileSync } from "fs";
+import { join } from "path";
+import { createFolderStructureAndReadmes, getFormattedDate, sanitiseText } from "../../../common/common";
 
-export default async function (projectName) {
-    validateProjectName(projectName);
-
-    const paths = await assemblePath({ projectName, projectRoot: "__GEN_PROJECTS", rootPath: "guis/web", tech: "vuejs" });
-
-    console.log(`🚀 Creating VueJs project: ${projectName}...`);
+export default async function ({ projectName, parentProjectDir }) {
 
     try {
-        initialiseFramework({ projectName, techDir: paths.techDir, projectDir: paths.projectDir });
-
-        setupFramework({ projectName, projectDir: paths.projectDir });
-
-        createSuggestedFolderStructure({ projectDir: paths.projectDir });
-
-        customiseBaseProject({ projectDir: paths.projectDir, formattedProjectName: sanitiseText({ text: projectName, capitalize: true }) });
-
-        console.log(`✅ Project setup completed and ready at ${paths.projectDir}`);
-        console.log("🚀 Happy coding!");
-
-        console.log("ⓘ Run the following command to start the development server:");
-        console.log(`ⓘ cd ./${paths.relativeProjectDir}`);
-        console.log("ⓘ bun run dev");
-
-        console.log("🚀 Starting the development server...");
-        execSync("bun run dev", { stdio: "inherit" });
-
+        cl(`\nCreating VueJs project: ${projectName}...`);
+        cl(`   The project is about to be created in this location ${parentProjectDir}`);
+        initialiseFramework({ projectName });
+        setupFramework({ projectName, parentProjectDir });
+        createSuggestedFolderStructure({ projectName, parentProjectDir });
+        prepareBaseProject({ projectName, parentProjectDir });
+        cl(`\n\nProject setup completed and ready at ${join(parentProjectDir, projectName)}`);
+        cl("Happy coding!");
+        cl("\n\nRun the following command to start the development server:");
+        cl(`cd ${projectName}`);
+        cl("bun run dev");
     } catch (error) {
-        console.error(error);
+        cr(error);
     }
-};
-
-
-function initialiseFramework({ projectName, techDir, projectDir }) {
-    console.log(`🚀 Initialising VueJs project: ${projectName}...`);
-
-    console.log(`🔧 Changing working directory to ${techDir}`);
-    process.chdir(techDir);
-
-    console.log(`🔧 Creating VueJs project ${projectName}`);
-    execSync(`bun create vue@latest ${projectName} --ts --router --pinia --eslint`, {
-        stdio: "inherit",
-    });
-
-    console.log(`🔧 Changing working directory to ${projectDir}`);
-    process.chdir(projectDir);
-
-    console.log(`🔧 Installing dependencies`);
-    execSync("bun install", { stdio: "inherit" });
-
-    console.log("✅ Initialisation of VueJs project completed");
-
 }
 
-function setupFramework({ projectName, projectDir }) {
-    console.log(`🚀 Setting up VueJs project: ${projectName}...`);
+function initialiseFramework({ projectName }) {
+    cl(`\n1. Initialising VueJs project: ${projectName}...`);
+    execSync(`bun create vue@latest ${projectName} --ts --router --pinia --eslint > /dev/null 2>&1`, {
+        stdio: "inherit",
+    });
+    process.chdir(projectName);
+    execSync("bun install --silent", { stdio: "inherit" });
+    cl("   Done!");
+}
 
-    console.log(`🔧 Changing working directory to ${projectDir}`);
-    process.chdir(projectDir);
-
-    console.log(`🔧 Adding Tailwind CSS for ${projectName}`);
-    execSync("bun add tailwindcss @tailwindcss/vite");
-
-    const viteConfigPath = path.join(projectDir, "vite.config.ts");
-    console.log("ⓘ viteConfigPath: ", viteConfigPath);
-
+function setupFramework({ projectName, parentProjectDir }) {
+    cl(`\n2. Setting up VueJs project: ${projectName}...`);
+    execSync("bun add --silent tailwindcss @tailwindcss/vite");
+    const viteConfigPath = join(parentProjectDir, projectName, "vite.config.ts");
     let viteConfigContent = readFileSync(viteConfigPath, "utf-8");
-
     const lines = viteConfigContent.split("\n");
     const tailwindImportLine = "import tailwindcss from '@tailwindcss/vite'";
     const insertIndex = 2;
     lines.splice(insertIndex, 0, tailwindImportLine);
     viteConfigContent = lines.join("\n");
-
     viteConfigContent = viteConfigContent.replace(
         /plugins:\s*\[\s*([\s\S]*?)\s*\]/,
         "plugins: [\n    $1,\n    tailwindcss(),\n  ]"
     );
-
-    console.log("🔧 Adding server configuration...");
     if (!/server:\s*\{/.test(viteConfigContent)) {
         viteConfigContent = viteConfigContent.replace(
             /plugins:\s*\[.*?\]\s*,/s, // Match plugins array
             match => `${match}\n  server: {\n    port: 51733,\n  },`
         );
     }
-
     writeFileSync(viteConfigPath, viteConfigContent, "utf-8");
-    console.log("✅ Tailwind CSS has been added to vite.config.ts");
-
-    console.log("✅ Setting up VueJs project completed");
-
+    cl("   Done!");
 }
 
-function createSuggestedFolderStructure({ projectDir }) {
-    console.log(`🔧 Creating suggested folder structure`);
-
+function createSuggestedFolderStructure({ projectName, parentProjectDir }) {
+    cl(`\n3. Creating suggested folder structure`);
     const folders = [
         { name: "assets", readmeHeader: "# Static assets (images, fonts, styles)" },
         { name: "components", readmeHeader: "# Reusable components" },
@@ -114,41 +74,29 @@ function createSuggestedFolderStructure({ projectDir }) {
         { name: "plugins", readmeHeader: "# Third-party plugin configuration (i18n, Axios, etc.)" },
         { name: "types", readmeHeader: "# TypeScript interfaces and types" }
     ];
-
-    createFolderStructureAndReadmes({ basePath: projectDir + "/src", folders, withReadmes: true });
-
+    cl("\n   " + folders.map(f => f.name).join(", "));
+    createFolderStructureAndReadmes({ basePath: join(parentProjectDir, projectName) + "/src", folders, withReadmes: true });
+    cl("\n   Done!");
 }
 
-function customiseBaseProject({ projectDir, formattedProjectName }) {
-
-    console.log("🔧 Updating the index title...");
-    const indexHtmlPath = path.join(projectDir, "index.html");
-    console.log("ⓘ indexHtmlPath: ", indexHtmlPath);
+function prepareBaseProject({ projectName, parentProjectDir }) {
+    cl(`\n4. Preparing the base project`);
+    const formattedProjectName = sanitiseText({ text: projectName, capitalize: true });
+    const indexHtmlPath = join(parentProjectDir, projectName, "index.html");
     const indexHtmlContent = readFileSync(indexHtmlPath, "utf-8");
     const updatedIndexHtmlContent = indexHtmlContent.replace(
         /<title>.*<\/title>/,
         `<title>${formattedProjectName}</title>`
     );
     writeFileSync(indexHtmlPath, updatedIndexHtmlContent, "utf-8");
-    console.log("✅ The index title has been updated");
-
-    const baseCssPath = path.join(projectDir, "src", "assets", "base.css");
-    console.log("ⓘ baseCssPath: ", baseCssPath);
+    const baseCssPath = join(parentProjectDir, projectName, "src", "assets", "base.css");
     const updatedBaseCssContent = '@import "tailwindcss";\n';
     writeFileSync(baseCssPath, updatedBaseCssContent, "utf-8");
-    console.log("✅ The base.css has been updated");
-
-    const mainCssPath = path.join(projectDir, "src", "assets", "main.css");
-    console.log("ⓘ mainCssPath: ", mainCssPath);
+    const mainCssPath = join(parentProjectDir, projectName, "src", "assets", "main.css");
     const updatedMainCssContent = "@import './base.css';\n";
     writeFileSync(mainCssPath, updatedMainCssContent, "utf-8");
-    console.log("✅ The main.css has been updated");
-
-    const appVuePath = path.join(projectDir, "src", "App.vue");
-    console.log("ⓘ appVuePath: ", appVuePath);
-
+    const appVuePath = join(parentProjectDir, projectName, "src", "App.vue");
     const updatedAppVueContent = `<template><div><div class="h-1/3 w-full flex items-center justify-center"><h1 class="text-3xl font-bold underline">${formattedProjectName} with VueJs (vite)</h1></div><div><p class="mt-4 text-gray-500 text-3xl">${getFormattedDate()}</p></div></div></template>`;
     writeFileSync(appVuePath, updatedAppVueContent, "utf-8");
-    console.log("✅ The App.vue has been updated");
-
+    cl(`   Done!`);
 }
