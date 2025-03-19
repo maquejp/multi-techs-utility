@@ -5,6 +5,7 @@ import { Command } from 'commander';
 import figlet from 'figlet';
 import { readFileSync } from 'fs';
 import { access } from 'fs/promises';
+import { rainbow } from 'gradient-string';
 import inquirer from 'inquirer';
 import path, { dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -438,7 +439,9 @@ program
     });
 
 // CLI header
-cl(ckb(figlet.textSync(packageData.name, { horizontalLayout: 'full' })));
+const cleanedPackageName = packageData.name.replace("-", " ").replace("-", " ");
+const headerTextAscii = figlet.textSync(cleanedPackageName, { horizontalLayout: "full" });
+cl(rainbow(headerTextAscii));
 
 // Parse command line arguments
 program.parse(process.argv);
